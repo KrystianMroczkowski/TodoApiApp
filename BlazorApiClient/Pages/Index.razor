@@ -1,0 +1,69 @@
+﻿@page "/"
+@using System.Net.Http.Json
+@inject IHttpClientFactory factory
+@inject TokenModel tokenInfo;
+
+
+<PageTitle>Index</PageTitle>
+
+@if (isLoggedIn)
+{
+	<h1>You are logged in.</h1>
+	<btn class="btn btn-danger" @onclick="LogOut">Log Out</btn>
+}
+else
+{
+	if (loginFailed)
+	{
+		<h1>Invalid username or password. Try again.</h1>
+	}
+	else
+	{
+		<h1>Please log in.</h1>
+	}
+
+	<EditForm Model="login" OnValidSubmit="HandleValidSubmit">
+		<InputText @bind-Value="@login.UserName" />
+		<InputText type="password" @bind-Value="@login.Password" />
+
+		<button class="btn btn-success" type="submit">Log In</button>
+	</EditForm>
+}
+
+@code {
+	private AuthenticationModel login = new ();
+	private bool isLoggedIn = false;
+	private bool loginFailed = false;
+
+	protected override void OnInitialized()
+	{
+		if (string.IsNullOrWhiteSpace(tokenInfo.Token) == false)
+		{
+			isLoggedIn = true;
+		}
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		var client = factory.CreateClient("api");
+
+		var info = await client.PostAsJsonAsync<AuthenticationModel>("authentication/token", login);
+		if (info.IsSuccessStatusCode)
+		{
+			tokenInfo.Token = await info.Content.ReadAsStringAsync();
+			isLoggedIn = true;
+			loginFailed = false;
+			await InvokeAsync(StateHasChanged);
+		}
+		else
+		{
+			loginFailed = true;
+		}
+	}
+
+	private void LogOut()
+	{
+		tokenInfo.Token = "";
+		isLoggedIn = false;
+	}
+}
